@@ -9,14 +9,18 @@ CHAT_ID = "1152311283"
 PARES = ["EUR/USD", "GBP/USD", "USD/JPY", "XAU/USD", "AUD/USD", "USD/CAD"]
 
 FEEDS = [
-    "https://br.dailyforex.com/rss",
-    "https://www.fxleaders.com/feed/",
-    "https://www.moneymunch.com/feed/",
+    "https://br.dailyforex.com/rss",  # funciona
+    "https://www.fxempire.com/api/v1/en/articles/rss/news",  # funciona
+    "https://www.instaforex.com/pt/forex_rss",  # funciona
 ]
+
+import requests
 
 def enviar_telegram(msg):
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    requests.post(url, data={"chat_id": CHAT_ID, "text": msg})
+    resp = requests.post(url, data={"chat_id": CHAT_ID, "text": msg})
+    print("Status code:", resp.status_code)
+    print("Resposta:", resp.text)
 
 def contem_par(texto):
     for par in PARES:
@@ -43,3 +47,5 @@ def gerar_resumo():
 if __name__ == "__main__":
     mensagem = gerar_resumo()
     enviar_telegram(mensagem)
+
+print("Mensagem enviada!")
