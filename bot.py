@@ -2,8 +2,8 @@ import feedparser
 import requests
 from datetime import datetime
 
-TOKEN = 8536609104:AAG_AO7jftggNoVWnC5uayOR6upX4bkFeIQ
-CHAT_ID = 1152311283
+TOKEN = "8536609104:AAG_AO7jftggNoVWnC5uayOR6upX4bkFeIQ"
+CHAT_ID = "1152311283"
 
 # Pares que você quer
 PARES = ["EUR/USD", "GBP/USD", "USD/JPY", "XAU/USD", "AUD/USD", "USD/CAD"]
