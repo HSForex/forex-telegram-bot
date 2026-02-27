@@ -1,51 +1,68 @@
 import feedparser
 import requests
+import os
 from datetime import datetime
 
-TOKEN = "8536609104:AAG_AO7jftggNoVWnC5uayOR6upX4bkFeIQ"
-CHAT_ID = "1152311283"
+TOKEN = os.environ['TELEGRAM_TOKEN']
+CHAT_ID = os.environ['TELEGRAM_CHAT_ID']
 
-# Pares que você quer
-PARES = ["EUR/USD", "GBP/USD", "USD/JPY", "XAU/USD", "AUD/USD", "USD/CAD"]
+FEEDS = {
+    "DailyForex": "https://br.dailyforex.com/rss",
+    "FXEmpire": "https://www.fxempire.com/api/v1/en/articles/rss/news",
+    "InstaForex": "https://www.instaforex.com/pt/forex_rss",
+}
 
-FEEDS = [
-    "https://br.dailyforex.com/rss",  # funciona
-    "https://www.fxempire.com/api/v1/en/articles/rss/news",  # funciona
-    "https://www.instaforex.com/pt/forex_rss",  # funciona
-]
+PAIRS = ["EUR/USD", "GBP/USD", "XAU/USD", "USD/JPY"]
 
-import requests
+def detectar_tendencia(texto):
+    texto = texto.lower()
+    if "buy" in texto or "compra" in texto or "bullish" in texto:
+        return "Buy"
+    if "sell" in texto or "venda" in texto or "bearish" in texto:
+        return "Sell"
+    return "Neutral"
 
 def enviar_telegram(msg):
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    resp = requests.post(url, data={"chat_id": CHAT_ID, "text": msg})
-    print("Status code:", resp.status_code)
-    print("Resposta:", resp.text)
+    requests.post(url, data={"chat_id": CHAT_ID, "text": msg, "parse_mode": "Markdown"})
 
-def contem_par(texto):
-    for par in PARES:
-        if par.lower() in texto.lower():
-            return True
-    return False
+def obter_dados():
+    resultado = {pair: {} for pair in PAIRS}
 
-def gerar_resumo():
-    hoje = datetime.now().strftime("%d/%m/%Y")
-    resumo = f"📊 *Forex Daily Tips — {hoje}*\n\n"
+    for nome, url in FEEDS.items():
+        feed = feedparser.parse(url)
 
-    for feed in FEEDS:
-        f = feedparser.parse(feed)
-
-        for entry in f.entries[:10]:
+        for entry in feed.entries[:20]:
             titulo = entry.title
-            link = entry.link
+            descricao = entry.get("description", "")
 
-            if contem_par(titulo):
-                resumo += f"• {titulo}\n{link}\n\n"
+            for pair in PAIRS:
+                if pair in titulo or pair in descricao:
+                    tendencia = detectar_tendencia(titulo + " " + descricao)
+                    resultado[pair][nome] = tendencia
 
-    return resumo
+    return resultado
+
+def calcular_consenso(dados):
+    mensagem = f"📊 *Resumo Diário Forex — {datetime.now().strftime('%d/%m/%Y')}*\n\n"
+
+    for pair, fontes in dados.items():
+        if not fontes:
+            continue
+
+        mensagem += f"*{pair}*\n"
+        contagem = {"Buy": 0, "Sell": 0, "Neutral": 0}
+
+        for fonte, tendencia in fontes.items():
+            mensagem += f"- {fonte}: {tendencia}\n"
+            contagem[tendencia] += 1
+
+        consenso = max(contagem, key=contagem.get)
+        mensagem += f"✅ Tendência geral: *{consenso}* ({contagem[consenso]}/{len(fontes)})\n\n"
+
+    return mensagem
 
 if __name__ == "__main__":
-    mensagem = gerar_resumo()
-    enviar_telegram(mensagem)
-
-print("Mensagem enviada!")
+    dados = obter_dados()
+    resumo = calcular_consenso(dados)
+    enviar_telegram(resumo)
